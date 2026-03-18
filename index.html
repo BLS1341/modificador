@@ -13,6 +13,8 @@
             --txt: #fff;
             --gray: #8e8e93;
             --input: #2c2c2e;
+            --success: #34c759;
+            --error: #ff453a;
         }
 
         body {
@@ -20,7 +22,7 @@
             color: var(--txt);
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             margin: 0;
-            padding-bottom: 80px; /* Espacio para el menú inferior */
+            padding-bottom: 90px;
         }
 
         .header {
@@ -30,11 +32,12 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            text-align: center;
         }
 
-        .container { padding: 20px; }
+        .container { padding: 20px; max-width: 500px; margin: auto; }
 
-        /* Navegación Inferior Estilo iOS */
+        /* Navegación Inferior */
         .nav-bar {
             position: fixed;
             bottom: 0;
@@ -43,241 +46,309 @@
             display: flex;
             justify-content: space-around;
             padding: 15px 0;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(15px);
             border-top: 1px solid #333;
         }
 
         .nav-item {
             color: var(--gray);
-            text-decoration: none;
             font-size: 12px;
             display: flex;
             flex-direction: column;
             align-items: center;
             cursor: pointer;
+            transition: 0.2s;
         }
 
-        .nav-item.active { color: var(--accent); }
+        .nav-item.active { color: var(--accent); transform: scale(1.1); }
 
-        /* Componentes de Formulario */
-        input, textarea, select {
+        /* UI Elements */
+        input, select {
             width: 100%;
             background: var(--input);
             border: none;
             border-radius: 12px;
             padding: 15px;
             color: #fff;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             box-sizing: border-box;
             font-size: 16px;
         }
 
         .btn {
-            background: var(--accent);
-            color: #000;
             border: none;
             padding: 15px;
             border-radius: 12px;
             width: 100%;
             font-weight: bold;
             font-size: 16px;
+            cursor: pointer;
             transition: transform 0.1s;
         }
 
-        .btn:active { transform: scale(0.97); }
+        .btn:active { transform: scale(0.96); }
+        .btn-accent { background: var(--accent); color: #000; }
+        .btn-gray { background: #444; color: #fff; }
+        .btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
 
-        .card-item {
+        .card {
             background: var(--card);
             padding: 15px;
-            border-radius: 15px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            border-radius: 18px;
+            margin-bottom: 12px;
         }
 
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
         .hidden { display: none; }
+
+        /* Badge para los ingredientes del borrador */
+        .ing-badge {
+            background: #2c2c2e;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--accent);
+            display: flex;
+            justify-content: space-between;
+        }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1 id="view-title" style="margin:0; font-size: 24px;">Calculadora</h1>
+    <h1 id="view-title" style="margin:0; font-size: 22px;">Calculadora</h1>
 </div>
 
 <div id="view-calc" class="container">
-    <h2>Nueva Simulación</h2>
-    <select id="select-receta" onchange="cargarRecetaEnCalc()">
-        <option value="">Seleccionar receta guardada...</option>
-    </select>
-
-    <div style="display: flex; gap: 10px;">
-        <input type="number" id="calc-rinde-ori" placeholder="Rinde original">
-        <input type="number" id="calc-rinde-des" placeholder="Rinde deseado">
+    <div class="card">
+        <p style="color: var(--gray); margin-top:0;">1. Elige una receta:</p>
+        <select id="calc-select-receta" onchange="actualizarInfoReceta()">
+            <option value="">Cargando recetas...</option>
+        </select>
+        
+        <div style="display: flex; gap: 10px;">
+            <div style="flex:1">
+                <label style="font-size:12px; color:var(--gray)">Rinde Original</label>
+                <input type="number" id="calc-r-ori" readonly style="opacity: 0.6">
+            </div>
+            <div style="flex:1">
+                <label style="font-size:12px; color:var(--accent)">Quiero Producir</label>
+                <input type="number" id="calc-r-des" placeholder="Ej: 50">
+            </div>
+        </div>
+        <button class="btn btn-accent" onclick="calcularSimulacion()">Calcular Costo Final</button>
     </div>
 
-    <textarea id="calc-ingredientes" rows="6" placeholder="ingrediente, cantidad, unidad (uno por linea)"></textarea>
-
-    <button class="btn" onclick="ejecutarCalculo()">Calcular Costos</button>
-
-    <div id="resultado-final" class="hidden">
-        <div id="lista-calculada" style="margin-top:20px;"></div>
-        <div class="card-item" style="background: var(--accent); color: #000; margin-top:10px;">
-            <b id="total-final">TOTAL: $0.00</b>
+    <div id="res-box" class="hidden">
+        <h3>Resultado Escalado</h3>
+        <div id="res-lista"></div>
+        <div class="card" style="background: var(--accent); color: #000;">
+            <b id="res-total" style="font-size: 20px;">TOTAL: $0.00</b>
         </div>
-        <button class="btn" style="background: #25D366; margin-top:10px;" onclick="compartirWhatsApp()">WhatsApp</button>
+        <button class="btn" style="background: #25D366; color: white;" onclick="compartirWS()">
+            📲 Enviar por WhatsApp
+        </button>
     </div>
 </div>
 
 <div id="view-recetas" class="container hidden">
-    <h2>Mis Recetas Maestras</h2>
-    <input type="text" id="rec-nombre" placeholder="Nombre de la receta">
-    <input type="number" id="rec-rinde" placeholder="¿Cuánto rinde? (ej: 40)">
-    <textarea id="rec-cuerpo" rows="5" placeholder="harina, 500, g&#10;azucar, 200, g"></textarea>
-    <button class="btn" onclick="guardarRecetaMaestra()">Guardar Receta</button>
+    <div class="card">
+        <h3>Nueva Receta</h3>
+        <input type="text" id="rec-nom" placeholder="Nombre (ej: Lemon Pie)">
+        <input type="number" id="rec-rin" placeholder="¿Cuánto rinde la base?">
+        
+        <div style="background: #000; padding: 12px; border-radius: 12px; margin-bottom: 10px;">
+            <p style="margin:0 0 10px 0; font-size: 13px; color: var(--accent);">Añadir ingrediente:</p>
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 5px; margin-bottom: 10px;">
+                <input type="text" id="t-nom" placeholder="Nombre" style="margin:0">
+                <input type="number" id="t-can" placeholder="Cant." style="margin:0">
+                <input type="text" id="t-uni" placeholder="Unid." style="margin:0">
+            </div>
+            <button class="btn btn-gray" style="padding: 10px;" onclick="agregarIngredienteABorrador()">+ Agregar Fila</button>
+        </div>
 
-    <div id="lista-recetas-guardadas" style="margin-top:20px;"></div>
+        <div id="borrador-lista" style="margin: 15px 0;"></div>
+        
+        <button class="btn btn-accent" onclick="guardarRecetaMaestra()">💾 Guardar Receta Maestra</button>
+    </div>
+
+    <h3 style="color:var(--gray)">Recetas Guardadas</h3>
+    <div id="lista-recetas-final"></div>
 </div>
 
 <div id="view-precios" class="container hidden">
-    <h2>Precios de Insumos</h2>
-    <input type="text" id="ins-nombre" placeholder="Insumo (ej: Harina)">
-    <div style="display: flex; gap: 10px;">
-        <input type="number" id="ins-precio" placeholder="Precio $">
-        <input type="number" id="ins-cantidad" placeholder="Cantidad (g/ml/u)">
+    <div class="card">
+        <h3>Cargar Precio</h3>
+        <input type="text" id="ins-nom" placeholder="Insumo (ej: Harina)">
+        <div style="display: flex; gap: 10px;">
+            <input type="number" id="ins-pre" placeholder="Precio $">
+            <input type="number" id="ins-can" placeholder="Cant. (g/ml)">
+        </div>
+        <button class="btn btn-accent" onclick="guardarPrecio()">Actualizar Inventario</button>
     </div>
-    <button class="btn" onclick="guardarInsumo()">Actualizar Precio</button>
 
-    <div id="lista-precios" style="margin-top:20px;"></div>
+    <div id="lista-precios-final"></div>
 </div>
 
 <div class="nav-bar">
-    <div class="nav-item active" onclick="showView('calc', 'Calculadora')"><span>⚖️</span>Calc</div>
-    <div class="nav-item" onclick="showView('recetas', 'Recetas')"><span>📖</span>Recetas</div>
-    <div class="nav-item" onclick="showView('precios', 'Precios')"><span>💰</span>Precios</div>
+    <div class="nav-item active" onclick="nav('calc', 'Calculadora')"><span>⚖️</span>Calc</div>
+    <div class="nav-item" onclick="nav('recetas', 'Mis Recetas')"><span>📖</span>Recetas</div>
+    <div class="nav-item" onclick="nav('precios', 'Precios')"><span>💰</span>Precios</div>
 </div>
 
 <script>
-    // BASE DE DATOS LOCAL
+    // ESTADO DE LA APP
     let db = {
         precios: JSON.parse(localStorage.getItem('cp_precios')) || {},
         recetas: JSON.parse(localStorage.getItem('cp_recetas')) || []
     };
+    let borradorIngredientes = [];
+    let textoWhatsApp = "";
 
-    function showView(viewId, title) {
-        document.querySelectorAll('.container').forEach(v => v.classList.add('hidden'));
-        document.getElementById('view-' + viewId).classList.remove('hidden');
+    function nav(view, title) {
+        document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+        document.getElementById('view-' + view).classList.remove('hidden');
         document.getElementById('view-title').innerText = title;
-
-        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         event.currentTarget.classList.add('active');
 
-        if(viewId === 'calc') actualizarSelectRecetas();
-        if(viewId === 'precios') renderPrecios();
-        if(viewId === 'recetas') renderRecetas();
+        if(view === 'calc') popularSelect();
+        if(view === 'recetas') renderRecetas();
+        if(view === 'precios') renderPrecios();
     }
 
-    // --- LÓGICA DE INSUMOS ---
-    function guardarInsumo() {
-        const nom = document.getElementById('ins-nombre').value.toLowerCase().trim();
-        const pre = parseFloat(document.getElementById('ins-precio').value);
-        const can = parseFloat(document.getElementById('ins-cantidad').value);
-
-        if (nom && pre && can) {
-            db.precios[nom] = pre / can;
+    // --- LÓGICA PRECIOS ---
+    function guardarPrecio() {
+        const n = document.getElementById('ins-nom').value.toLowerCase().trim();
+        const p = parseFloat(document.getElementById('ins-pre').value);
+        const c = parseFloat(document.getElementById('ins-can').value);
+        if(n && p && c) {
+            db.precios[n] = p / c;
             localStorage.setItem('cp_precios', JSON.stringify(db.precios));
             renderPrecios();
-            document.getElementById('ins-nombre').value = "";
+            document.getElementById('ins-nom').value = "";
+            document.getElementById('ins-pre').value = "";
+            document.getElementById('ins-can').value = "";
         }
     }
 
     function renderPrecios() {
-        const div = document.getElementById('lista-precios');
-        div.innerHTML = "<h3>Lista de Precios (Costo/Unidad)</h3>";
-        for (let item in db.precios) {
-            div.innerHTML += `<div class="card-item"><span>${item}</span><b>$${db.precios[item].toFixed(4)}</b></div>`;
+        const d = document.getElementById('lista-precios-final');
+        d.innerHTML = "";
+        for (let x in db.precios) {
+            d.innerHTML += `<div class="card flex-between"><span>${x}</span><b>$${db.precios[x].toFixed(3)} /unid</b></div>`;
         }
     }
 
-    // --- LÓGICA DE RECETAS ---
-    function guardarRecetaMaestra() {
-        const nombre = document.getElementById('rec-nombre').value;
-        const rinde = document.getElementById('rec-rinde').value;
-        const cuerpo = document.getElementById('rec-cuerpo').value;
+    // --- LÓGICA RECETAS (FILAS DINÁMICAS) ---
+    function agregarIngredienteABorrador() {
+        const n = document.getElementById('t-nom').value.toLowerCase().trim();
+        const c = document.getElementById('t-can').value;
+        const u = document.getElementById('t-uni').value;
+        if(n && c && u) {
+            borradorIngredientes.push({ n, c, u });
+            renderBorrador();
+            document.getElementById('t-nom').value = "";
+            document.getElementById('t-can').value = "";
+            document.getElementById('t-uni').value = "";
+            document.getElementById('t-nom').focus();
+        }
+    }
 
-        if(nombre && rinde && cuerpo) {
-            db.recetas.push({ nombre, rinde, cuerpo });
+    function renderBorrador() {
+        const d = document.getElementById('borrador-lista');
+        d.innerHTML = "";
+        borradorIngredientes.forEach((ing, i) => {
+            d.innerHTML += `<div class="ing-badge"><span>${ing.c}${ing.u} ${ing.n}</span><span onclick="eliminarDelBorrador(${i})" style="color:var(--error)">✕</span></div>`;
+        });
+    }
+
+    function eliminarDelBorrador(i) {
+        borradorIngredientes.splice(i, 1);
+        renderBorrador();
+    }
+
+    function guardarRecetaMaestra() {
+        const nom = document.getElementById('rec-nom').value;
+        const rin = document.getElementById('rec-rin').value;
+        if(nom && rin && borradorIngredientes.length > 0) {
+            const cuerpo = borradorIngredientes.map(i => `${i.n},${i.c},${i.u}`).join('\n');
+            db.recetas.push({ nom, rin, cuerpo });
             localStorage.setItem('cp_recetas', JSON.stringify(db.recetas));
+            borradorIngredientes = [];
+            document.getElementById('rec-nom').value = "";
+            document.getElementById('rec-rin').value = "";
+            renderBorrador();
             renderRecetas();
             alert("Receta guardada!");
         }
     }
 
     function renderRecetas() {
-        const div = document.getElementById('lista-recetas-guardadas');
-        div.innerHTML = "";
-        db.recetas.forEach((r, index) => {
-            div.innerHTML += `<div class="card-item"><span>${r.nombre} (Rinde ${r.rinde})</span><button onclick="borrarReceta(${index})" style="background:none; border:none; color:red;">🗑️</button></div>`;
+        const d = document.getElementById('lista-recetas-final');
+        d.innerHTML = "";
+        db.recetas.forEach((r, i) => {
+            d.innerHTML += `<div class="card flex-between"><span>${r.nom} (Rinde ${r.rin})</span><span onclick="borrarReceta(${i})" style="color:var(--error)">🗑️</span></div>`;
         });
     }
 
-    function actualizarSelectRecetas() {
-        const sel = document.getElementById('select-receta');
-        sel.innerHTML = '<option value="">Seleccionar receta...</option>';
-        db.recetas.forEach((r, index) => {
-            sel.innerHTML += `<option value="${index}">${r.nombre}</option>`;
-        });
-    }
-
-    function cargarRecetaEnCalc() {
-        const idx = document.getElementById('select-receta').value;
-        if(idx !== "") {
-            const r = db.recetas[idx];
-            document.getElementById('calc-rinde-ori').value = r.rinde;
-            document.getElementById('calc-ingredientes').value = r.cuerpo;
+    function borrarReceta(i) {
+        if(confirm("¿Borrar receta?")) {
+            db.recetas.splice(i, 1);
+            localStorage.setItem('cp_recetas', JSON.stringify(db.recetas));
+            renderRecetas();
         }
     }
 
-    // --- CÁLCULO FINAL ---
-    let ultimaExportacion = "";
+    // --- CALCULADORA ---
+    function popularSelect() {
+        const s = document.getElementById('calc-select-receta');
+        s.innerHTML = '<option value="">Selecciona...</option>';
+        db.recetas.forEach((r, i) => s.innerHTML += `<option value="${i}">${r.nom}</option>`);
+    }
 
-    function ejecutarCalculo() {
-        const texto = document.getElementById('calc-ingredientes').value.trim();
-        const rOri = parseFloat(document.getElementById('calc-rinde-ori').value);
-        const rDes = parseFloat(document.getElementById('calc-rinde-des').value);
-        const factor = rDes / rOri;
+    function actualizarInfoReceta() {
+        const idx = document.getElementById('calc-select-receta').value;
+        if(idx !== "") {
+            document.getElementById('calc-r-ori').value = db.recetas[idx].rin;
+        }
+    }
 
-        if(!texto || !factor) return;
+    function calcularSimulacion() {
+        const idx = document.getElementById('calc-select-receta').value;
+        const rDes = parseFloat(document.getElementById('calc-r-des').value);
+        if(idx === "" || !rDes) return;
 
+        const r = db.recetas[idx];
+        const factor = rDes / r.rin;
         let total = 0;
-        let lineas = texto.split('\n');
         let html = "";
-        ultimaExportacion = `*${document.getElementById('select-receta').selectedOptions[0].text}* (Rinde ${rDes})%0A`;
+        textoWhatsApp = `*RECETA: ${r.nom}* (Rinde ${rDes})%0A%0A`;
 
-        lineas.forEach(l => {
-            const p = l.split(',');
-            if(p.length === 3) {
-                const nom = p[0].toLowerCase().trim();
-                const cant = parseFloat(p[1]) * factor;
-                const unit = p[2].trim();
-                const costo = (db.precios[nom] || 0) * cant;
-                total += costo;
+        r.cuerpo.split('\n').forEach(linea => {
+            const p = linea.split(',');
+            const nom = p[0];
+            const cant = parseFloat(p[1]) * factor;
+            const uni = p[2];
+            const costo = (db.precios[nom] || 0) * cant;
+            total += costo;
 
-                html += `<div class="card-item"><span>${cant.toFixed(1)} ${unit} ${nom}</span><b>$${costo.toFixed(2)}</b></div>`;
-                ultimaExportacion += `• ${cant.toFixed(1)}${unit} ${nom}: $${costo.toFixed(2)}%0A`;
-            }
+            html += `<div class="card flex-between" style="font-size:14px"><span>${cant.toFixed(1)}${uni} ${nom}</span><b>$${costo.toFixed(2)}</b></div>`;
+            textoWhatsApp += `• ${cant.toFixed(1)}${uni} ${nom}: $${costo.toFixed(2)}%0A`;
         });
 
-        ultimaExportacion += `%0A*TOTAL: $${total.toFixed(2)}*`;
-        document.getElementById('lista-calculada').innerHTML = html;
-        document.getElementById('total-final').innerText = `TOTAL: $${total.toFixed(2)}`;
-        document.getElementById('resultado-final').classList.remove('hidden');
+        textoWhatsApp += `%0A*COSTO TOTAL: $${total.toFixed(2)}*`;
+        document.getElementById('res-lista').innerHTML = html;
+        document.getElementById('res-total').innerText = `TOTAL: $${total.toFixed(2)}`;
+        document.getElementById('res-box').classList.remove('hidden');
     }
 
-    function compartirWhatsApp() {
-        window.open(`https://wa.me/?text=${ultimaExportacion}`, '_blank');
+    function compartirWS() {
+        window.open(`https://wa.me/?text=${textoWhatsApp}`, '_blank');
     }
 
+    // Inicialización
+    popularSelect();
 </script>
 </body>
 </html>
